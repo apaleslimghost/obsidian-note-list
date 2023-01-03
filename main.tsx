@@ -1,4 +1,14 @@
-import { App, ItemView, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import {
+	App,
+	ItemView,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	Vault,
+	WorkspaceLeaf,
+} from "obsidian";
+import React from "react";
+import { createRoot, Root } from "react-dom/client";
 
 // Remember to rename these classes and interfaces!
 
@@ -7,26 +17,43 @@ interface MyPluginSettings {
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
+	mySetting: "default",
+};
 
-const NOTE_LIST_VIEW_TYPE = 'NOTE-LIST'
+const NOTE_LIST_VIEW_TYPE = "NOTE-LIST";
 
 class NoteListView extends ItemView {
+	root?: Root;
+
+	constructor(leaf: WorkspaceLeaf, private vault: Vault) {
+		super(leaf);
+	}
+
 	getViewType(): string {
-		return NOTE_LIST_VIEW_TYPE
+		return NOTE_LIST_VIEW_TYPE;
 	}
 
 	getDisplayText(): string {
-		return 'Note list'
+		return "Note list";
 	}
 
 	async onOpen(): Promise<void> {
+		this.root = createRoot(this.containerEl.children[1]);
+		this.root.render(
+			<ul>
+				{this.vault.getMarkdownFiles().map((file) => (
+					<li>{file.basename}</li>
+				))}
+			</ul>
+		);
+	}
 
+	async onClose(): Promise<void> {
+		this.root?.unmount();
 	}
 
 	getIcon(): string {
-		return 'files'
+		return "files";
 	}
 }
 
@@ -47,22 +74,27 @@ export default class MyPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.registerView(NOTE_LIST_VIEW_TYPE, leaf => new NoteListView(leaf))
+		this.registerView(
+			NOTE_LIST_VIEW_TYPE,
+			(leaf) => new NoteListView(leaf, this.app.vault)
+		);
 
-        this.app.workspace.onLayoutReady(async () => {
+		this.app.workspace.onLayoutReady(async () => {
 			await this.openFileTreeLeaf(true);
-        });
+		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 	}
 
-	onunload() {
-
-	}
+	onunload() {}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData()
+		);
 	}
 
 	async saveSettings() {
@@ -79,22 +111,24 @@ class SampleSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const {containerEl} = this;
+		const { containerEl } = this;
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
+		containerEl.createEl("h2", { text: "Settings for my awesome plugin." });
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName("Setting #1")
+			.setDesc("It's a secret")
+			.addText((text) =>
+				text
+					.setPlaceholder("Enter your secret")
+					.setValue(this.plugin.settings.mySetting)
+					.onChange(async (value) => {
+						console.log("Secret: " + value);
+						this.plugin.settings.mySetting = value;
+						await this.plugin.saveSettings();
+					})
+			);
 	}
 }
