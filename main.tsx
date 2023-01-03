@@ -5,11 +5,13 @@ import {
 	Plugin,
 	PluginSettingTab,
 	Setting,
+	TFile,
 	Vault,
 	WorkspaceLeaf,
 } from "obsidian";
 import React, { FC, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
+import { Map } from "immutable";
 
 // Remember to rename these classes and interfaces!
 
@@ -26,24 +28,31 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	metadataCache,
 }) => {
 	const [files, setFiles] = useState(vault.getMarkdownFiles());
-	const [tags, setTags] = useState([] as string[]);
+	const [tags, setTags] = useState(
+		Map<TFile, string[]>(
+			files.map((file) => [
+				file,
+				(metadataCache.getFileCache(file)?.tags ?? []).map(
+					(tag) => tag.tag
+				),
+			])
+		)
+	);
 
 	useEffect(() => {
 		vault.on("create", () => setFiles(vault.getMarkdownFiles()));
 		vault.on("delete", () => setFiles(vault.getMarkdownFiles()));
 		vault.on("rename", () => setFiles(vault.getMarkdownFiles()));
-	}, []);
 
-	useEffect(() => {
-		setTags(
-			files.flatMap(
-				(file) =>
-					metadataCache
-						.getFileCache(file)
-						?.tags?.map((tag) => tag.tag) ?? []
-			)
-		);
-	}, [files]);
+		metadataCache.on("changed", (file, data, cache) => {
+			setTags((tags) =>
+				tags.set(
+					file,
+					(cache.tags ?? []).map((tag) => tag.tag)
+				)
+			);
+		});
+	}, []);
 
 	return (
 		<>
@@ -53,9 +62,11 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 				))}
 			</ul>
 			<ul>
-				{tags.map((tag) => (
-					<li key={tag}>{tag}</li>
-				))}
+				{tags
+					.valueSeq()
+					.flatMap((tags) =>
+						tags.map((tag) => <li key={tag}>{tag}</li>)
+					)}
 			</ul>
 		</>
 	);
