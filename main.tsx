@@ -32,7 +32,7 @@ const NoteList: FC<{ vault: Vault }> = ({ vault }) => {
 	return (
 		<ul>
 			{files.map((file) => (
-				<li>{file.basename}</li>
+				<li key={file.path}>{file.basename}</li>
 			))}
 		</ul>
 	);
