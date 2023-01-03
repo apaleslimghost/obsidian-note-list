@@ -10,3 +10,5 @@
 -   [ ] ui
     -   [ ] note preview
     -   [ ] list styling
+    -   [ ] tag counts
+    -   [ ] tag nesting
