@@ -7,7 +7,7 @@ import {
 	Vault,
 	WorkspaceLeaf,
 } from "obsidian";
-import React from "react";
+import React, { FC, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 
 // Remember to rename these classes and interfaces!
@@ -18,6 +18,24 @@ interface MyPluginSettings {
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
 	mySetting: "default",
+};
+
+const NoteList: FC<{ vault: Vault }> = ({ vault }) => {
+	const [files, setFiles] = useState(vault.getMarkdownFiles());
+
+	useEffect(() => {
+		vault.on("create", () => setFiles(vault.getMarkdownFiles()));
+		vault.on("delete", () => setFiles(vault.getMarkdownFiles()));
+		vault.on("rename", () => setFiles(vault.getMarkdownFiles()));
+	}, []);
+
+	return (
+		<ul>
+			{files.map((file) => (
+				<li>{file.basename}</li>
+			))}
+		</ul>
+	);
 };
 
 const NOTE_LIST_VIEW_TYPE = "NOTE-LIST";
@@ -39,13 +57,7 @@ class NoteListView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		this.root = createRoot(this.containerEl.children[1]);
-		this.root.render(
-			<ul>
-				{this.vault.getMarkdownFiles().map((file) => (
-					<li>{file.basename}</li>
-				))}
-			</ul>
-		);
+		this.root.render(<NoteList vault={this.vault} />);
 	}
 
 	async onClose(): Promise<void> {
