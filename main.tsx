@@ -1,6 +1,7 @@
 import {
 	App,
 	ItemView,
+	MetadataCache,
 	Plugin,
 	PluginSettingTab,
 	Setting,
@@ -20,8 +21,12 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 	mySetting: "default",
 };
 
-const NoteList: FC<{ vault: Vault }> = ({ vault }) => {
+const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
+	vault,
+	metadataCache,
+}) => {
 	const [files, setFiles] = useState(vault.getMarkdownFiles());
+	const [tags, setTags] = useState([] as string[]);
 
 	useEffect(() => {
 		vault.on("create", () => setFiles(vault.getMarkdownFiles()));
@@ -29,12 +34,30 @@ const NoteList: FC<{ vault: Vault }> = ({ vault }) => {
 		vault.on("rename", () => setFiles(vault.getMarkdownFiles()));
 	}, []);
 
+	useEffect(() => {
+		setTags(
+			files.flatMap(
+				(file) =>
+					metadataCache
+						.getFileCache(file)
+						?.tags?.map((tag) => tag.tag) ?? []
+			)
+		);
+	}, [files]);
+
 	return (
-		<ul>
-			{files.map((file) => (
-				<li key={file.path}>{file.basename}</li>
-			))}
-		</ul>
+		<>
+			<ul>
+				{files.map((file) => (
+					<li key={file.path}>{file.basename}</li>
+				))}
+			</ul>
+			<ul>
+				{tags.map((tag) => (
+					<li key={tag}>{tag}</li>
+				))}
+			</ul>
+		</>
 	);
 };
 
@@ -43,7 +66,7 @@ const NOTE_LIST_VIEW_TYPE = "NOTE-LIST";
 class NoteListView extends ItemView {
 	root?: Root;
 
-	constructor(leaf: WorkspaceLeaf, private vault: Vault) {
+	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
 	}
 
@@ -57,7 +80,12 @@ class NoteListView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		this.root = createRoot(this.containerEl.children[1]);
-		this.root.render(<NoteList vault={this.vault} />);
+		this.root.render(
+			<NoteList
+				vault={this.app.vault}
+				metadataCache={this.app.metadataCache}
+			/>
+		);
 	}
 
 	async onClose(): Promise<void> {
@@ -88,7 +116,7 @@ export default class MyPlugin extends Plugin {
 
 		this.registerView(
 			NOTE_LIST_VIEW_TYPE,
-			(leaf) => new NoteListView(leaf, this.app.vault)
+			(leaf) => new NoteListView(leaf)
 		);
 
 		this.app.workspace.onLayoutReady(async () => {
