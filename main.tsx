@@ -28,6 +28,7 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	metadataCache,
 }) => {
 	const [files, setFiles] = useState(vault.getMarkdownFiles());
+	const [filter, setFilter] = useState<string | undefined>();
 
 	useEffect(() => {
 		vault.on("create", () => setFiles(vault.getMarkdownFiles()));
@@ -35,10 +36,37 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 		vault.on("rename", () => setFiles(vault.getMarkdownFiles()));
 	}, []);
 
+	function handleFilterEvent(event: Event) {
+		if (event instanceof CustomEvent) {
+			setFilter(event.detail);
+		}
+	}
+
+	useEffect(() => {
+		document.addEventListener(
+			"obsidian-note-list:set-filter",
+			handleFilterEvent
+		);
+
+		return () =>
+			document.removeEventListener(
+				"obsidian-note-list:set-filter",
+				handleFilterEvent
+			);
+	});
+
+	const filteredFiles = !filter
+		? files
+		: files.filter((file) =>
+				metadataCache
+					.getFileCache(file)
+					?.tags?.some((tag) => tag.tag === filter)
+		  );
+
 	return (
 		<>
 			<ul>
-				{files.map((file) => (
+				{filteredFiles.map((file) => (
 					<li key={file.path}>{file.basename}</li>
 				))}
 			</ul>
@@ -46,10 +74,12 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	);
 };
 
-const TagList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
-	vault,
-	metadataCache,
-}) => {
+const TagList: FC<{
+	vault: Vault;
+	metadataCache: MetadataCache;
+}> = ({ vault, metadataCache }) => {
+	const [filter, setFilter] = useState<string | undefined>();
+
 	const [tags, setTags] = useState(
 		Map<TFile, string[]>(
 			vault
@@ -64,6 +94,13 @@ const TagList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	);
 
 	useEffect(() => {
+		const event = new CustomEvent("obsidian-note-list:set-filter", {
+			detail: filter,
+		});
+		document.dispatchEvent(event);
+	}, [filter]);
+
+	useEffect(() => {
 		metadataCache.on("changed", (file, data, cache) => {
 			setTags((tags) =>
 				tags.set(
@@ -76,9 +113,19 @@ const TagList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 
 	return (
 		<ul>
-			{tags
-				.valueSeq()
-				.flatMap((tags) => tags.map((tag) => <li key={tag}>{tag}</li>))}
+			{tags.valueSeq().flatMap((tags) =>
+				tags.map((tag) => (
+					<li key={tag}>
+						<button
+							onClick={() =>
+								setFilter(filter === tag ? undefined : tag)
+							}
+						>
+							{filter === tag ? <strong>{tag}</strong> : tag}
+						</button>
+					</li>
+				))
+			)}
 		</ul>
 	);
 };
@@ -87,6 +134,7 @@ const NOTE_LIST_VIEW_TYPE = "NOTE-LIST";
 
 class NoteListView extends ItemView {
 	root?: Root;
+	setFilter?: (filter: string) => void;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -176,6 +224,7 @@ export default class MyPlugin extends Plugin {
 			NOTE_LIST_VIEW_TYPE,
 			(leaf) => new NoteListView(leaf)
 		);
+
 		this.registerView(TAG_LIST_VIEW_TYPE, (leaf) => new TagListView(leaf));
 
 		this.app.workspace.onLayoutReady(async () => {
