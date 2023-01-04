@@ -177,7 +177,7 @@ class TagListView extends ItemView {
 	}
 
 	getViewType(): string {
-		return NOTE_LIST_VIEW_TYPE;
+		return TAG_LIST_VIEW_TYPE;
 	}
 
 	getDisplayText(): string {
