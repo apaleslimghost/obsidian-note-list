@@ -12,7 +12,7 @@ import {
 } from "obsidian";
 import React, { FC, MouseEventHandler, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { Map, Set } from "immutable";
+import { fromJS, List, Map, Set } from "immutable";
 
 // Remember to rename these classes and interfaces!
 
@@ -100,17 +100,22 @@ const TagList: FC<{
 }> = ({ vault, metadataCache }) => {
 	const [filter, setFilter] = useState<string | undefined>();
 
-	const [tags, setTags] = useState(
-		Set<string>(
-			vault
-				.getMarkdownFiles()
-				.flatMap((file) =>
-					(metadataCache.getFileCache(file)?.tags ?? []).map(
-						(tag) => tag.tag
-					)
-				)
-		)
-	);
+	const getFilesByTag = () =>
+		vault
+			.getMarkdownFiles()
+			.reduce(
+				(map, file) =>
+					(metadataCache.getFileCache(file)?.tags ?? []).reduce(
+						(map, tag) =>
+							map.update(tag.tag, (files) =>
+								files ? files.add(file) : Set([file])
+							),
+						map
+					),
+				Map<string, Set<TFile>>()
+			);
+
+	const [tags, setTags] = useState(getFilesByTag());
 
 	useEffect(() => {
 		const event = new CustomEvent("obsidian-note-list:set-filter", {
@@ -121,25 +126,27 @@ const TagList: FC<{
 
 	useEffect(() => {
 		metadataCache.on("changed", (file, data, cache) => {
-			setTags((tags) =>
-				tags.merge((cache.tags ?? []).map((tag) => tag.tag))
-			);
+			setTags(getFilesByTag());
 		});
 	}, []);
 
 	return (
 		<ul>
-			{tags.map((tag) => (
-				<li key={tag}>
-					<button
-						onClick={() =>
-							setFilter(filter === tag ? undefined : tag)
-						}
-					>
-						{filter === tag ? <strong>{tag}</strong> : tag}
-					</button>
-				</li>
-			))}
+			{tags
+				.map((files, tag) => (
+					<li key={tag}>
+						<button
+							onClick={() =>
+								setFilter(filter === tag ? undefined : tag)
+							}
+						>
+							{filter === tag ? <strong>{tag}</strong> : tag}
+						</button>
+						{files.size}
+					</li>
+				))
+				.valueSeq()
+				.toArray()}
 		</ul>
 	);
 };
