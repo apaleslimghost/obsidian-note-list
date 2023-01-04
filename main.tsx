@@ -12,7 +12,7 @@ import {
 } from "obsidian";
 import React, { FC, MouseEventHandler, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { Map } from "immutable";
+import { Map, Set } from "immutable";
 
 // Remember to rename these classes and interfaces!
 
@@ -101,15 +101,14 @@ const TagList: FC<{
 	const [filter, setFilter] = useState<string | undefined>();
 
 	const [tags, setTags] = useState(
-		Map<TFile, string[]>(
+		Set<string>(
 			vault
 				.getMarkdownFiles()
-				.map((file) => [
-					file,
+				.flatMap((file) =>
 					(metadataCache.getFileCache(file)?.tags ?? []).map(
 						(tag) => tag.tag
-					),
-				])
+					)
+				)
 		)
 	);
 
@@ -123,29 +122,24 @@ const TagList: FC<{
 	useEffect(() => {
 		metadataCache.on("changed", (file, data, cache) => {
 			setTags((tags) =>
-				tags.set(
-					file,
-					(cache.tags ?? []).map((tag) => tag.tag)
-				)
+				tags.merge((cache.tags ?? []).map((tag) => tag.tag))
 			);
 		});
 	}, []);
 
 	return (
 		<ul>
-			{tags.valueSeq().flatMap((tags) =>
-				tags.map((tag) => (
-					<li key={tag}>
-						<button
-							onClick={() =>
-								setFilter(filter === tag ? undefined : tag)
-							}
-						>
-							{filter === tag ? <strong>{tag}</strong> : tag}
-						</button>
-					</li>
-				))
-			)}
+			{tags.map((tag) => (
+				<li key={tag}>
+					<button
+						onClick={() =>
+							setFilter(filter === tag ? undefined : tag)
+						}
+					>
+						{filter === tag ? <strong>{tag}</strong> : tag}
+					</button>
+				</li>
+			))}
 		</ul>
 	);
 };
