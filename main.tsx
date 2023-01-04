@@ -8,8 +8,9 @@ import {
 	TFile,
 	Vault,
 	WorkspaceLeaf,
+	moment,
 } from "obsidian";
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, MouseEventHandler, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Map } from "immutable";
 
@@ -22,6 +23,19 @@ interface MyPluginSettings {
 const DEFAULT_SETTINGS: MyPluginSettings = {
 	mySetting: "default",
 };
+
+const Note: FC<{
+	title: string;
+	modified: moment.Moment;
+	onClick?: MouseEventHandler;
+}> = ({ title, modified, onClick }) => (
+	<a onClick={onClick}>
+		<h3>{title}</h3>
+		<time dateTime={modified.toISOString()} title={modified.calendar()}>
+			{modified.fromNow()}
+		</time>
+	</a>
+);
 
 const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	vault,
@@ -65,9 +79,15 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 
 	return (
 		<>
+			{filter && <h2>Notes tagged {filter}</h2>}
 			<ul>
 				{filteredFiles.map((file) => (
-					<li key={file.path}>{file.basename}</li>
+					<li key={file.path}>
+						<Note
+							title={file.basename}
+							modified={moment(file.stat.mtime)}
+						/>
+					</li>
 				))}
 			</ul>
 		</>
