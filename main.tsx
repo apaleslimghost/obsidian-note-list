@@ -12,7 +12,7 @@ import {
 } from "obsidian";
 import React, { FC, MouseEventHandler, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { fromJS, List, Map, Set } from "immutable";
+import { fromJS, List, Map, OrderedMap, Set } from "immutable";
 
 // Remember to rename these classes and interfaces!
 
@@ -28,14 +28,16 @@ const Note: FC<{
 	title: string;
 	modified: moment.Moment;
 	onClick?: MouseEventHandler;
-}> = ({ title, modified, onClick }) => (
-	<a onClick={onClick}>
-		<h3>{title}</h3>
-		<time dateTime={modified.toISOString()} title={modified.calendar()}>
-			{modified.fromNow()}
-		</time>
-	</a>
-);
+}> = ({ title, modified, onClick }) => {
+	return (
+		<a onClick={onClick}>
+			<h3>{title}</h3>
+			<time dateTime={modified.toISOString()} title={modified.calendar()}>
+				{modified.fromNow()}
+			</time>
+		</a>
+	);
+};
 
 const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	vault,
@@ -112,8 +114,9 @@ const TagList: FC<{
 							),
 						map
 					),
-				Map<string, Set<TFile>>()
-			);
+				OrderedMap<string, Set<TFile>>()
+			)
+			.sortBy((files) => -files.size);
 
 	const [tags, setTags] = useState(getFilesByTag());
 
