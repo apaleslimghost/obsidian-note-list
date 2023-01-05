@@ -10,9 +10,16 @@ import {
 	WorkspaceLeaf,
 	moment,
 } from "obsidian";
-import React, { FC, MouseEventHandler, useEffect, useState } from "react";
+import React, {
+	createContext,
+	FC,
+	MouseEventHandler,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
 import { createRoot, Root } from "react-dom/client";
-import { fromJS, List, Map, OrderedMap, Set } from "immutable";
+import { OrderedMap, Set } from "immutable";
 
 // Remember to rename these classes and interfaces!
 
@@ -24,17 +31,51 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 	mySetting: "default",
 };
 
+const VaultContext = createContext<Vault | undefined>(undefined);
+
+function useAsync<T>(
+	func: () => Promise<T>
+): [T | null, Error | null, boolean] {
+	const [value, setValue] = useState<T | null>(null);
+	const [error, setError] = useState(null);
+	const [loading, setLoading] = useState(true);
+
+	async function run() {
+		try {
+			setValue(await func());
+		} catch (error) {
+			setError(error);
+		} finally {
+			setLoading(false);
+		}
+	}
+
+	useEffect(() => {
+		run();
+	}, []);
+
+	return [value, error, loading];
+}
+
 const Note: FC<{
-	title: string;
-	modified: moment.Moment;
+	file: TFile;
 	onClick?: MouseEventHandler;
-}> = ({ title, modified, onClick }) => {
+}> = ({ file, onClick }) => {
+	const vault = useContext(VaultContext)!;
+
+	const [content, error, loading] = useAsync(async () =>
+		vault.cachedRead(file)
+	);
+
+	const modified = moment(file.stat.mtime);
+
 	return (
 		<a onClick={onClick}>
-			<h3>{title}</h3>
+			<h3>{file.basename}</h3>
 			<time dateTime={modified.toISOString()} title={modified.calendar()}>
 				{modified.fromNow()}
 			</time>
+			{!(loading || error) && content}
 		</a>
 	);
 };
@@ -85,10 +126,7 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 			<ul>
 				{filteredFiles.map((file) => (
 					<li key={file.path}>
-						<Note
-							title={file.basename}
-							modified={moment(file.stat.mtime)}
-						/>
+						<Note file={file} />
 					</li>
 				))}
 			</ul>
@@ -175,10 +213,12 @@ class NoteListView extends ItemView {
 	async onOpen(): Promise<void> {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(
-			<NoteList
-				vault={this.app.vault}
-				metadataCache={this.app.metadataCache}
-			/>
+			<VaultContext.Provider value={this.app.vault}>
+				<NoteList
+					vault={this.app.vault}
+					metadataCache={this.app.metadataCache}
+				/>
+			</VaultContext.Provider>
 		);
 	}
 
