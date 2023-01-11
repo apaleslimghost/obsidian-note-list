@@ -1,12 +1,10 @@
 import {
 	App,
 	ItemView,
-	MetadataCache,
 	Plugin,
 	PluginSettingTab,
 	Setting,
 	TFile,
-	Vault,
 	WorkspaceLeaf,
 	moment,
 	Events,
@@ -34,7 +32,7 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 	mySetting: "default",
 };
 
-const VaultContext = createContext<Vault | undefined>(undefined);
+const AppContext = createContext<App | undefined>(undefined);
 
 const useEventRef = (source: Events, init: (source: Events) => EventRef) =>
 	useEffect(() => {
@@ -72,14 +70,17 @@ const Note: FC<{
 	file: TFile;
 	onClick?: MouseEventHandler;
 }> = ({ file, onClick }) => {
-	const vault = useContext(VaultContext)!;
+	const app = useContext(AppContext)!;
+	const [mtime, setMtime] = useState(file.stat.mtime);
 
 	const [content, error, loading] = useAsync(
-		async () => vault.cachedRead(file),
-		[]
+		async () => app.vault.cachedRead(file),
+		[mtime]
 	);
 
-	const modified = moment(file.stat.mtime);
+	// useEventRef()
+
+	const modified = moment(mtime);
 
 	return (
 		<a onClick={onClick}>
@@ -92,10 +93,8 @@ const Note: FC<{
 	);
 };
 
-const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
-	vault,
-	metadataCache,
-}) => {
+const NoteList = () => {
+	const { vault, metadataCache } = useContext(AppContext)!;
 	const [files, setFiles] = useState(vault.getMarkdownFiles());
 	const [filter, setFilter] = useState<string | undefined>();
 
@@ -150,11 +149,9 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	);
 };
 
-const TagList: FC<{
-	vault: Vault;
-	metadataCache: MetadataCache;
-}> = ({ vault, metadataCache }) => {
+const TagList = () => {
 	const [filter, setFilter] = useState<string | undefined>();
+	const { vault, metadataCache } = useContext(AppContext)!;
 
 	const getFilesByTag = () =>
 		vault
@@ -229,12 +226,9 @@ class NoteListView extends ItemView {
 	async onOpen(): Promise<void> {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(
-			<VaultContext.Provider value={this.app.vault}>
-				<NoteList
-					vault={this.app.vault}
-					metadataCache={this.app.metadataCache}
-				/>
-			</VaultContext.Provider>
+			<AppContext.Provider value={this.app}>
+				<NoteList />
+			</AppContext.Provider>
 		);
 	}
 
@@ -266,12 +260,7 @@ class TagListView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		this.root = createRoot(this.containerEl.children[1]);
-		this.root.render(
-			<TagList
-				vault={this.app.vault}
-				metadataCache={this.app.metadataCache}
-			/>
-		);
+		this.root.render(<TagList />);
 	}
 
 	async onClose(): Promise<void> {
