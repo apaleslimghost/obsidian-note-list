@@ -19,7 +19,6 @@ import React, {
 	useState,
 } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { OrderedMap, Set } from "immutable";
 import stripMarkdown from "strip-markdown-oneline";
 
 // Remember to rename these classes and interfaces!
@@ -161,62 +160,6 @@ const NoteList = () => {
 	);
 };
 
-const TagList = () => {
-	const [filter, setFilter] = useState<string | undefined>();
-	const { vault, metadataCache } = useContext(AppContext)!;
-
-	const getFilesByTag = () =>
-		vault
-			.getMarkdownFiles()
-			.reduce(
-				(map, file) =>
-					(metadataCache.getFileCache(file)?.tags ?? []).reduce(
-						(map, tag) =>
-							map.update(tag.tag, (files) =>
-								files ? files.add(file) : Set([file])
-							),
-						map
-					),
-				OrderedMap<string, Set<TFile>>()
-			)
-			.sortBy((files) => -files.size);
-
-	const [tags, setTags] = useState(getFilesByTag());
-
-	useEffect(() => {
-		const event = new CustomEvent("obsidian-note-list:set-filter", {
-			detail: filter,
-		});
-		document.dispatchEvent(event);
-	}, [filter]);
-
-	useEventRef(metadataCache, () =>
-		metadataCache.on("changed", (file, data, cache) => {
-			setTags(getFilesByTag());
-		})
-	);
-
-	return (
-		<ul>
-			{tags
-				.map((files, tag) => (
-					<li key={tag}>
-						<button
-							onClick={() =>
-								setFilter(filter === tag ? undefined : tag)
-							}
-						>
-							{filter === tag ? <strong>{tag}</strong> : tag}
-						</button>
-						{files.size}
-					</li>
-				))
-				.valueSeq()
-				.toArray()}
-		</ul>
-	);
-};
-
 const NOTE_LIST_VIEW_TYPE = "NOTE-LIST";
 
 class NoteListView extends ItemView {
@@ -253,39 +196,11 @@ class NoteListView extends ItemView {
 	}
 }
 
-const TAG_LIST_VIEW_TYPE = "TAG-LIST";
+type FunctionArgs<T> = T extends (...args: infer A) => unknown ? A : unknown;
 
-class TagListView extends ItemView {
-	root?: Root;
-
-	constructor(leaf: WorkspaceLeaf) {
-		super(leaf);
-	}
-
-	getViewType(): string {
-		return TAG_LIST_VIEW_TYPE;
-	}
-
-	getDisplayText(): string {
-		return "Tag list";
-	}
-
-	async onOpen(): Promise<void> {
-		this.root = createRoot(this.containerEl.children[1]);
-		this.root.render(
-			<AppContext.Provider value={this.app}>
-				<TagList />
-			</AppContext.Provider>
-		);
-	}
-
-	async onClose(): Promise<void> {
-		this.root?.unmount();
-	}
-
-	getIcon(): string {
-		return "hash";
-	}
+function onDocument(...args: FunctionArgs<Document["on"]>) {
+	document.on(...args);
+	return () => document.off(...args);
 }
 
 export default class MyPlugin extends Plugin {
@@ -302,6 +217,22 @@ export default class MyPlugin extends Plugin {
 		}
 	}
 
+	handleTagClick = (event: Event) => {
+		if (!(event.target instanceof HTMLElement)) return;
+		event.stopImmediatePropagation();
+
+		const tagItem = event.target.closest(".tag-pane-tag")!;
+		const text = tagItem.querySelector(".tag-pane-tag-text")!;
+
+		const tag = "#" + text.textContent;
+
+		document.dispatchEvent(
+			new CustomEvent("obsidian-note-list:set-filter", {
+				detail: tag,
+			})
+		);
+	};
+
 	async onload() {
 		await this.loadSettings();
 
@@ -310,11 +241,19 @@ export default class MyPlugin extends Plugin {
 			(leaf) => new NoteListView(leaf)
 		);
 
-		this.registerView(TAG_LIST_VIEW_TYPE, (leaf) => new TagListView(leaf));
+		this.register(
+			onDocument(
+				"click",
+				".tag-pane-tag",
+				(event) => this.handleTagClick(event),
+				{
+					capture: true,
+				}
+			)
+		);
 
 		this.app.workspace.onLayoutReady(async () => {
 			await this.openLeaf(NOTE_LIST_VIEW_TYPE, true);
-			await this.openLeaf(TAG_LIST_VIEW_TYPE, true);
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
