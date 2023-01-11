@@ -1,8 +1,47 @@
-/*
+.note-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1em;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.note {
+	color: inherit;
+	text-decoration: none;
+	display: block;
+	border-bottom: 1px solid var(--background-modifier-border);
+	cursor: default;
+}
 
-If your plugin does not need CSS, delete this file.
+.note:hover {
+	color: inherit;
+	text-decoration: none;
+	position: relative;
+}
 
-*/
+.note:hover::after {
+	content: '';
+	background: var(--interactive-hover);
+	border-radius: 1ex;
+	position: absolute;
+	top: -1ex;
+	left: -1ex;
+	right: -1ex;
+	bottom: 1ex;
+	z-index: -1;
+}
+
+.note h3 {
+	font-size: 1.1em;
+	font-weight: bold;
+	margin: 0 0 0.2em;
+}
+
+.note-summary {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-muted);
+}

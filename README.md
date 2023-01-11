@@ -4,7 +4,7 @@
 
 -   [ ] interaction
     -   [x] filtering
-    -   [ ] opening notes
+    -   [x] opening notes
     -   [ ] context menus (can you integrate with tag wrangler? think so if you have the right classes)
 -   [ ] sorting
 -   [ ] ui

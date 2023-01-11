@@ -14,7 +14,6 @@ import React, {
 	createContext,
 	DependencyList,
 	FC,
-	MouseEventHandler,
 	useContext,
 	useEffect,
 	useState,
@@ -89,14 +88,19 @@ const Note: FC<{
 	const modified = moment(mtime);
 
 	return (
-		<a onClick={() => workspace.openLinkText(file.basename, file.path)}>
+		<a
+			className="note"
+			onClick={() => workspace.openLinkText(file.basename, file.path)}
+		>
 			<h3>{file.basename}</h3>
 			<time dateTime={modified.toISOString()} title={modified.calendar()}>
 				{modified.fromNow()}
 			</time>
-			{!(loading || error) &&
-				content &&
-				stripMarkdown(content.replace(/\n+/g, "\n\n"))}
+			<p className="note-summary">
+				{!(loading || error) &&
+					content &&
+					stripMarkdown(content.replace(/\n+/g, "\n\n"))}
+			</p>
 		</a>
 	);
 };
@@ -146,7 +150,7 @@ const NoteList = () => {
 	return (
 		<>
 			{filter && <h2>Notes tagged {filter}</h2>}
-			<ul>
+			<ul className="note-list">
 				{filteredFiles.map((file) => (
 					<li key={file.path}>
 						<Note file={file} />
