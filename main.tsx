@@ -113,10 +113,10 @@ const NoteList = () => {
 		vault.on("create", () => setFiles(vault.getMarkdownFiles()))
 	);
 	useEventRef(vault, () =>
-		vault.on("create", () => setFiles(vault.getMarkdownFiles()))
+		vault.on("delete", () => setFiles(vault.getMarkdownFiles()))
 	);
 	useEventRef(vault, () =>
-		vault.on("create", () => setFiles(vault.getMarkdownFiles()))
+		vault.on("rename", () => setFiles(vault.getMarkdownFiles()))
 	);
 
 	function handleFilterEvent(event: Event) {
