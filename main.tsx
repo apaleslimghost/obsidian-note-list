@@ -69,9 +69,8 @@ function useAsync<T>(
 
 const Note: FC<{
 	file: TFile;
-	onClick?: MouseEventHandler;
-}> = ({ file, onClick }) => {
-	const { vault } = useContext(AppContext)!;
+}> = ({ file }) => {
+	const { vault, workspace } = useContext(AppContext)!;
 	const [mtime, setMtime] = useState(file.stat.mtime);
 
 	const [content, error, loading] = useAsync(
@@ -90,7 +89,7 @@ const Note: FC<{
 	const modified = moment(mtime);
 
 	return (
-		<a onClick={onClick}>
+		<a onClick={() => workspace.openLinkText(file.basename, file.path)}>
 			<h3>{file.basename}</h3>
 			<time dateTime={modified.toISOString()} title={modified.calendar()}>
 				{modified.fromNow()}
