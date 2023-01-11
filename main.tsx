@@ -9,6 +9,7 @@ import {
 	moment,
 	Events,
 	EventRef,
+	MarkdownPreviewRenderer,
 } from "obsidian";
 import React, {
 	createContext,
@@ -17,10 +18,12 @@ import React, {
 	MouseEventHandler,
 	useContext,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { OrderedMap, Set } from "immutable";
+import ReactMarkdown from "react-markdown";
 
 // Remember to rename these classes and interfaces!
 
@@ -94,7 +97,9 @@ const Note: FC<{
 			<time dateTime={modified.toISOString()} title={modified.calendar()}>
 				{modified.fromNow()}
 			</time>
-			{!(loading || error) && content}
+			{!(loading || error) && content && (
+				<ReactMarkdown>{content}</ReactMarkdown>
+			)}
 		</a>
 	);
 };
