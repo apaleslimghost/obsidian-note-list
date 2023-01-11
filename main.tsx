@@ -70,15 +70,21 @@ const Note: FC<{
 	file: TFile;
 	onClick?: MouseEventHandler;
 }> = ({ file, onClick }) => {
-	const app = useContext(AppContext)!;
+	const { vault } = useContext(AppContext)!;
 	const [mtime, setMtime] = useState(file.stat.mtime);
 
 	const [content, error, loading] = useAsync(
-		async () => app.vault.cachedRead(file),
+		async () => vault.cachedRead(file),
 		[mtime]
 	);
 
-	// useEventRef()
+	useEventRef(vault, () =>
+		vault.on("modify", (f) => {
+			if (f === file) {
+				setMtime(file.stat.mtime);
+			}
+		})
+	);
 
 	const modified = moment(mtime);
 
@@ -260,7 +266,11 @@ class TagListView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		this.root = createRoot(this.containerEl.children[1]);
-		this.root.render(<TagList />);
+		this.root.render(
+			<AppContext.Provider value={this.app}>
+				<TagList />
+			</AppContext.Provider>
+		);
 	}
 
 	async onClose(): Promise<void> {
