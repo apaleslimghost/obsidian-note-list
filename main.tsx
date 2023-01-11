@@ -9,9 +9,12 @@ import {
 	Vault,
 	WorkspaceLeaf,
 	moment,
+	Events,
+	EventRef,
 } from "obsidian";
 import React, {
 	createContext,
+	DependencyList,
 	FC,
 	MouseEventHandler,
 	useContext,
@@ -33,8 +36,15 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 
 const VaultContext = createContext<Vault | undefined>(undefined);
 
+const useEventRef = (source: Events, init: (source: Events) => EventRef) =>
+	useEffect(() => {
+		const eventRef = init(source);
+		return () => source.offref(eventRef);
+	}, []);
+
 function useAsync<T>(
-	func: () => Promise<T>
+	func: () => Promise<T>,
+	deps?: DependencyList
 ): [T | null, Error | null, boolean] {
 	const [value, setValue] = useState<T | null>(null);
 	const [error, setError] = useState(null);
@@ -42,6 +52,7 @@ function useAsync<T>(
 
 	async function run() {
 		try {
+			setLoading(true);
 			setValue(await func());
 		} catch (error) {
 			setError(error);
@@ -52,7 +63,7 @@ function useAsync<T>(
 
 	useEffect(() => {
 		run();
-	}, []);
+	}, deps);
 
 	return [value, error, loading];
 }
@@ -63,8 +74,9 @@ const Note: FC<{
 }> = ({ file, onClick }) => {
 	const vault = useContext(VaultContext)!;
 
-	const [content, error, loading] = useAsync(async () =>
-		vault.cachedRead(file)
+	const [content, error, loading] = useAsync(
+		async () => vault.cachedRead(file),
+		[]
 	);
 
 	const modified = moment(file.stat.mtime);
@@ -87,11 +99,15 @@ const NoteList: FC<{ vault: Vault; metadataCache: MetadataCache }> = ({
 	const [files, setFiles] = useState(vault.getMarkdownFiles());
 	const [filter, setFilter] = useState<string | undefined>();
 
-	useEffect(() => {
-		vault.on("create", () => setFiles(vault.getMarkdownFiles()));
-		vault.on("delete", () => setFiles(vault.getMarkdownFiles()));
-		vault.on("rename", () => setFiles(vault.getMarkdownFiles()));
-	}, []);
+	useEventRef(vault, () =>
+		vault.on("create", () => setFiles(vault.getMarkdownFiles()))
+	);
+	useEventRef(vault, () =>
+		vault.on("create", () => setFiles(vault.getMarkdownFiles()))
+	);
+	useEventRef(vault, () =>
+		vault.on("create", () => setFiles(vault.getMarkdownFiles()))
+	);
 
 	function handleFilterEvent(event: Event) {
 		if (event instanceof CustomEvent) {
@@ -165,11 +181,11 @@ const TagList: FC<{
 		document.dispatchEvent(event);
 	}, [filter]);
 
-	useEffect(() => {
+	useEventRef(metadataCache, () =>
 		metadataCache.on("changed", (file, data, cache) => {
 			setTags(getFilesByTag());
-		});
-	}, []);
+		})
+	);
 
 	return (
 		<ul>
